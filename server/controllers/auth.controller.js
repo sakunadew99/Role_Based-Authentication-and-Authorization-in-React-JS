@@ -1,5 +1,6 @@
 import jwt from 'jsonwebtoken';
 import User from '../models/user.model.js';
+import bcrypt from 'bcrypt';
 
 const generateToken = (user) => {
     const token = jwt.sign(user, process.env.JWT_CLIENT_SECRET);
@@ -56,33 +57,41 @@ export const signupUser = async (req, res) => {
 export const loginUser = async (req, res) => {
     try {
         const { email, password } = req.body;
-        let existingUser = await User.findOne({ email });
-        if(!existingUser){
+        const existingUser = await User.findOne({ email });
+
+        if (!existingUser) {
             return res.status(404).json({
                 success: false,
                 message: "User doesn't exist!"
-            })
+            });
         }
-        if(existingUser.password !== password){
+
+        // Compare hashed password
+        const isPasswordValid = await bcrypt.compare(password, existingUser.password);
+
+        if (!isPasswordValid) {
             return res.status(401).json({
                 success: false,
                 message: "Incorrect password!"
-            })
+            });
         }
+
         const userObj = {
             _id: existingUser._id,
             role: existingUser.role
-        }
+        };
+
         const token = generateToken(userObj);
+
         res.status(200).json({
             success: true,
             token,
-            message: 'Successfuly loggedin!'
-        })
+            message: 'Successfully logged in!'
+        });
     } catch (err) {
         res.status(500).json({
             success: false,
             message: err.message
-        })
+        });
     }
-}
+};
